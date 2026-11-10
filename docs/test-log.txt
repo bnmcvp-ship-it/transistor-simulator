@@ -1,0 +1,29 @@
+﻿py : test_analyze_rejects_invalid_values (test_dc_bias.TestAnalyzeValidation.test_analyze_rejects_invalid_values) ... 
+ok
+At line:1 char:1
++ py -m unittest discover -s tests -v 2>&1 | Out-File -Encoding utf8 "C ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_analyze_re..._values) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_analyze_resistor_validation (test_dc_bias.TestAnalyzeValidation.test_analyze_resistor_validation) ... ok
+test_parse_field_rejects_empty (test_dc_bias.TestParseField.test_parse_field_rejects_empty) ... ok
+test_parse_field_rejects_non_finite (test_dc_bias.TestParseField.test_parse_field_rejects_non_finite) ... ok
+test_parse_field_rejects_non_numeric (test_dc_bias.TestParseField.test_parse_field_rejects_non_numeric) ... ok
+test_parse_field_rejects_none (test_dc_bias.TestParseField.test_parse_field_rejects_none) ... ok
+test_reference_case (test_dc_bias.TestReferenceCase.test_reference_case) ... ok
+test_cutoff_case (test_dc_bias.TestWarningScenarios.test_cutoff_case) ... ok
+test_saturation_case (test_dc_bias.TestWarningScenarios.test_saturation_case) ... ok
+test_get_index (test_web.TestWebRoutes.test_get_index)
+A1: GET / ต้อง 200 และมีฟอร์มครบทั้ง 7 ช่อง ... ok
+test_post_calculate_reference (test_web.TestWebRoutes.test_post_calculate_reference)
+A2/A3: POST ค่าอ้างอิง \u2192 ผล DC Bias จาก Python (ไม่ใช่ค่าฮาร์ดโคด) ... ok
+test_post_invalid_value (test_web.TestWebRoutes.test_post_invalid_value)
+A4: R1 ติดลบ \u2192 200 พร้อมข้อความ error หน้าไม่ล้ม ... ok
+test_post_missing_fields (test_web.TestWebRoutes.test_post_missing_fields)
+A4: ฟอร์มว่างเปล่า (ไม่มีฟิลด์ vcc) \u2192 200 พร้อมข้อความ error ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.050s
+
+OK
