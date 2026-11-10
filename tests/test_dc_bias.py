@@ -54,6 +54,11 @@ class TestParseField(unittest.TestCase):
             parse_field("12a", "R1")
         self.assertIn("R1", str(ctx.exception))
 
+    def test_parse_field_rejects_non_finite(self):
+        for bad in ("nan", "inf", "-inf", "infinity", "1e400"):
+            with self.assertRaises(BiasError, msg=bad):
+                parse_field(bad, "VCC")
+
 
 class TestAnalyzeValidation(unittest.TestCase):
     """A4: R≤0, β≤0, VCC≤0 → BiasError ก่อนคำนวณ"""

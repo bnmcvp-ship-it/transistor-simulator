@@ -17,6 +17,8 @@ Python ล้วน ไม่รู้จัก HTML/HTTP — Flask (app.py) เ
     VCE = VC − VE
 """
 
+import math
+
 SAT_VCE_LIMIT = 0.2  # V — ต่ำกว่าค่านี้ถือว่าเข้าสู่ Saturation
 
 
@@ -33,9 +35,12 @@ def parse_field(raw: str | None, name: str) -> float:
         raise BiasError(f"กรุณากรอกค่า {name}")
     text = str(raw).strip()
     try:
-        return float(text)
+        value = float(text)
     except ValueError:
         raise BiasError(f"{name} ต้องเป็นตัวเลข (ได้รับ: {text!r})")
+    if not math.isfinite(value):
+        raise BiasError(f"{name} ต้องเป็นจำนวนจำกัด (ได้รับ: {text!r})")
+    return value
 
 
 def analyze(vcc: float, r1: float, r2: float, rc: float, re: float,
