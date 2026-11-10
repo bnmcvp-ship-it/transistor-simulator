@@ -13,6 +13,7 @@
   VCE = VC−VE                   = 8.05215 V
 """
 
+import math
 import unittest
 
 from dc_bias import BiasError, analyze, parse_field
@@ -79,6 +80,35 @@ class TestAnalyzeValidation(unittest.TestCase):
             analyze(vcc=12, r1=100, r2=22, rc=0, re=1, beta=100, vbe=0.7)
         with self.assertRaises(BiasError):
             analyze(vcc=12, r1=100, r2=22, rc=2.2, re=-1, beta=100, vbe=0.7)
+
+
+class TestWarningScenarios(unittest.TestCase):
+    """A5: อยู่นอก Active Region → warning ไม่รายงานว่า approximation ใช้ได้"""
+
+    def test_cutoff_case(self):
+        # R2=1k เล็กมาก → VTH = 12×1/101 ≈ 0.119 V ≤ VBE 0.70 V
+        result = analyze(
+            vcc=12.0, r1=100.0, r2=1.0, rc=2.2, re=1.0,
+            beta=100.0, vbe=0.70,
+        )
+        self.assertEqual(result["region"], "Cutoff")
+        self.assertTrue(len(result["warnings"]) > 0)
+        # ค่าทั้งหมดต้องเป็นเลขจำกัด (ไม่ NaN/inf)
+        for key in ("vth", "rth", "ib", "ic", "ie", "vb", "ve", "vc", "vce"):
+            self.assertTrue(math.isfinite(result[key]), f"{key} not finite")
+
+    def test_saturation_case(self):
+        # R1=R2=100k, RC=2.4k → IC×RC ตัดจน VCE ≈ 0.031 V < 0.2 V
+        result = analyze(
+            vcc=12.0, r1=100.0, r2=100.0, rc=2.4, re=1.0,
+            beta=100.0, vbe=0.70,
+        )
+        self.assertEqual(result["region"], "Saturation")
+        self.assertTrue(len(result["warnings"]) > 0)
+        # ค่าทั้งหมดต้องเป็นเลขจำกัด (ไม่ NaN/inf)
+        for key in ("vth", "rth", "ib", "ic", "ie", "vb", "ve", "vc", "vce"):
+            self.assertTrue(math.isfinite(result[key]), f"{key} not finite")
+        self.assertLess(result["vce"], 0.2)
 
 
 if __name__ == "__main__":
