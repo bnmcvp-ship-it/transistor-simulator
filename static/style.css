@@ -1,0 +1,18 @@
+*{box-sizing:border-box}
+body{font:15px/1.7 Tahoma,"Leelawadee UI",Arial,sans-serif;background:#f4f7fa;color:#1b3448;margin:0;padding:24px;max-width:760px;margin:auto}
+h1{font-size:1.35rem;margin:0 0 4px}
+.model{color:#54708a;margin:0 0 18px;font-size:.9rem}
+form{background:#fff;border:1px solid #d4e0ea;border-radius:8px;padding:18px 20px;display:grid;grid-template-columns:220px 1fr;gap:10px 12px;align-items:center}
+label{font-size:.92rem}
+input{width:100%;padding:7px 9px;border:1px solid #b9c9d6;border-radius:5px;font:inherit;background:#fbfdff}
+input:focus{outline:2px solid #2f7ea0;border-color:#2f7ea0}
+button{grid-column:1/-1;justify-self:start;margin-top:6px;padding:9px 22px;background:#12557d;color:#fff;border:0;border-radius:6px;font-weight:bold;cursor:pointer}
+button:hover{background:#0e4464}
+h2{margin:22px 0 8px;font-size:1.1rem;color:#12405e}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{border:1px solid #d4e0ea;padding:8px 12px;text-align:left}
+th{background:#e6f0f8;color:#123e5c}
+td:nth-child(2){font-family:Consolas,monospace}
+.region{color:#0f7a52}
+.error{background:#fdeceb;border-left:4px solid #c0392b;padding:12px 15px;margin:16px 0;border-radius:0 6px 6px 0;color:#8c2318}
+.warnings{background:#fff8e6;border-left:4px solid #c98a12;padding:12px 15px;margin:12px 0;border-radius:0 6px 6px 0;color:#7a5a0c}

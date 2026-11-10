@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BJT DC Bias Calculator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>BJT DC Bias — Common Emitter (Voltage-Divider Bias)</h1>
+  <p class="model">แบบจำลอง: Forward-Active Approximation (β, VBE คงที่)</p>
+
+  <form method="post" action="/calculate">
+    {% for field, label, placeholder in fields %}
+    <label for="{{ field }}">{{ label }}</label>
+    <input id="{{ field }}" name="{{ field }}" value="{{ form.get(field, placeholder) }}"
+           inputmode="decimal" autocomplete="off">
+    {% endfor %}
+    <button type="submit">Calculate DC Bias</button>
+  </form>
+
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+
+  {% if rows is not none %}
+  <h2>DC Bias Results</h2>
+  <table>
+    <tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr>
+    {% for name, value, unit in rows %}
+    <tr><td>{{ name }}</td><td>{{ value }}</td><td>{{ unit }}</td></tr>
+    {% endfor %}
+  </table>
+  <p>Operating Region: <strong class="region">{{ region }}</strong></p>
+  {% if warnings %}
+  <ul class="warnings">
+    {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
+</body>
+</html>
