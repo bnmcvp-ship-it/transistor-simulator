@@ -58,10 +58,19 @@
 ที่ template ใส่ให้ตามโหมด — การที่ browser ไม่บล็อกการส่งจึงพิสูจน์ว่า Flask
 เป็นฝ่ายตรวจค่าเอง ตรงตามข้อกำหนดของ handout
 
-## หลักฐานภาพหน้าจอ
+## หลักฐานภาพหน้าจอ (ก่อนใส่ค่า / หลังใส่ค่า)
 
-- `docs/screenshots/lab03-a4-emitter.png` — หน้าผล Emitter Bias กรณี RE=2 kΩ (IC=0.94 mA, VCE=8.03 V)
-- `docs/screenshots/lab03-a5-error.png` — หน้า error Fixed Bias RB=0 (ไม่มีตารางผล)
+แคปคู่ภาพทุกกรณีตามภาพ `before` / `after` ใน handout — `before` คือฟอร์มที่
+เคลียร์ช่อง input ให้ว่างก่อนกรอก, `after` คือหน้าหลังกรอกค่าครบแล้วกด Calculate
+(HTTP POST จริง) เก็บใน `docs/screenshots/`:
+
+| กรณี | ก่อนใส่ค่า | หลังใส่ค่า |
+|---|---|---|
+| A1 Divider | `lab03-A1-before.png` | `lab03-A1-after.png` (IC=1.23 mA, VCE=8.05 V) |
+| A2 Fixed | `lab03-A2-before.png` | `lab03-A2-after.png` (IC=1.13 mA, VCE=9.51 V) |
+| A3 Emitter RE=1k | `lab03-A3-before.png` | `lab03-A3-after.png` (IC=1.03 mA, VCE=8.71 V) |
+| A4 Emitter RE=2k | `lab03-A4-before.png` | `lab03-A4-after.png` (IC=0.94 mA, VCE=8.03 V) |
+| A5 Fixed RB=0 | `lab03-A5-before.png` | `lab03-A5-after.png` (`[Fixed Bias] RB ต้องมากกว่า 0`, ไม่มีตารางผล) |
 
 ## Automated Tests
 

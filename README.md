@@ -54,7 +54,8 @@ py -m unittest discover -s tests -v
 ตาราง A1–A5, วิธีตรวจ, และสถานะเครื่องมืออยู่ใน `docs/validation.md`
 (ใช้ **OpenCode Browser** เพราะไม่มี node/npx สำหรับ Playwright MCP —
 บันทึก `NOT RUN` พร้อมเหตุผลตาม handout)
-ภาพหน้าจออยู่ใน `docs/screenshots/`
+ภาพหน้าจอคู่ **ก่อนใส่ค่า / หลังใส่ค่า** ของ A1–A5 อยู่ใน `docs/screenshots/`
+(`lab03-A1-before.png` / `lab03-A1-after.png` ... `lab03-A5-*.png`)
 
 ## โครงสร้าง
 
