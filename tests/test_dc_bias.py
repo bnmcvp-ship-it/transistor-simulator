@@ -16,7 +16,9 @@
 import math
 import unittest
 
-from dc_bias import BiasError, analyze, parse_field
+from dc_bias import (
+    BiasError, analyze, analyze_emitter, analyze_fixed, parse_field,
+)
 
 
 class TestReferenceCase(unittest.TestCase):
@@ -114,6 +116,64 @@ class TestWarningScenarios(unittest.TestCase):
         for key in ("vth", "rth", "ib", "ic", "ie", "vb", "ve", "vc", "vce"):
             self.assertTrue(math.isfinite(result[key]), f"{key} not finite")
         self.assertLess(result["vce"], 0.2)
+
+
+class TestFixedBias(unittest.TestCase):
+    """Lab 03 — Fixed Bias: ค่าอ้างอิงคำนวณมือ IB=(VCC−VBE)/RB"""
+
+    def test_fixed_reference(self):
+        # IB = 11.3/1M = 11.30 µA, IC = 1.130 mA
+        # VC = 12 − 1.130m×2.2k = 9.514 V, VE = 0, VCE = 9.514 V
+        result = analyze_fixed(vcc=12, rb=1000, rc=2.2, beta=100, vbe=0.7)
+        self.assertAlmostEqual(result["ib"] * 1e6, 11.30, delta=0.001)  # µA
+        self.assertAlmostEqual(result["ic"] * 1e3, 1.130, delta=0.001)  # mA
+        self.assertAlmostEqual(result["vce"], 9.514, delta=0.001)       # V
+        self.assertAlmostEqual(result["vb"], 0.7, delta=0.001)
+        self.assertEqual(result["ve"], 0.0)
+        self.assertEqual(result["region"], "Forward-Active")
+        self.assertEqual(result["warnings"], [])
+
+    def test_fixed_rejects_zero_rb(self):
+        with self.assertRaises(BiasError) as ctx:
+            analyze_fixed(vcc=12, rb=0, rc=2.2, beta=100, vbe=0.7)
+        self.assertIn("RB ต้องมากกว่า 0", str(ctx.exception))
+
+    def test_fixed_saturation_warning(self):
+        # RB=100k → IB=113 µA, IC=11.3 mA → IC×RC=24.86 V > VCC → VCE<0.2
+        result = analyze_fixed(vcc=12, rb=100, rc=2.2, beta=100, vbe=0.7)
+        self.assertEqual(result["region"], "Saturation")
+        self.assertTrue(len(result["warnings"]) > 0)
+        for key in ("ib", "ic", "ie", "vb", "ve", "vc", "vce"):
+            self.assertTrue(math.isfinite(result[key]), f"{key} not finite")
+        self.assertLess(result["vce"], 0.2)
+
+
+class TestEmitterBias(unittest.TestCase):
+    """Lab 03 — Emitter Bias: IB=(VCC−VBE)/(RB+(β+1)RE)"""
+
+    def test_emitter_reference(self):
+        # IB = 11.3/(1M+101×1k) = 10.2634 µA, IC = 1.0263 mA
+        # IE = 1.0366 mA, VE = 1.0366 V, VC = 9.7421 V, VCE = 8.7055 V
+        result = analyze_emitter(
+            vcc=12, rb=1000, rc=2.2, re=1, beta=100, vbe=0.7,
+        )
+        self.assertAlmostEqual(result["ic"] * 1e3, 1.0263, delta=0.001)  # mA
+        self.assertAlmostEqual(result["vce"], 8.7055, delta=0.001)       # V
+        self.assertAlmostEqual(result["ve"], 1.0366, delta=0.001)        # V
+        self.assertEqual(result["region"], "Forward-Active")
+        self.assertEqual(result["warnings"], [])
+
+    def test_emitter_more_re_lower_ic(self):
+        # RE=2k → IB = 11.3/(1M+202k) = 9.401 µA → IC = 0.9401 mA
+        result = analyze_emitter(
+            vcc=12, rb=1000, rc=2.2, re=2, beta=100, vbe=0.7,
+        )
+        self.assertAlmostEqual(result["ic"] * 1e3, 0.9401, delta=0.001)  # mA
+        self.assertAlmostEqual(result["vce"], 8.0328, delta=0.001)       # V
+        less_re = analyze_emitter(
+            vcc=12, rb=1000, rc=2.2, re=1, beta=100, vbe=0.7,
+        )
+        self.assertLess(result["ic"], less_re["ic"])
 
 
 if __name__ == "__main__":

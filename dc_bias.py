@@ -117,3 +117,92 @@ def analyze(vcc: float, r1: float, r2: float, rc: float, re: float,
         "region": region,
         "warnings": warnings,
     }
+
+
+# ---------------------------------------------------------------------------
+# Lab 03 — Fixed Bias / Emitter Bias (แหล่งจ่ายเดียว)
+# ใช้ helper ร่วมกัน แต่ไม่เปลี่ยนสมการ analyze() ด้านบน
+# ---------------------------------------------------------------------------
+
+def _validate_common(vcc: float, beta: float, vbe: float) -> None:
+    """ตรวจค่าที่ทุกโหมดใช้ร่วมกัน"""
+    if vcc <= 0:
+        raise BiasError("VCC ต้องมากกว่า 0 (หน่วย V)")
+    if beta <= 0:
+        raise BiasError("β ต้องมากกว่า 0")
+    if vbe < 0:
+        raise BiasError("VBE ต้องไม่ติดลบ (หน่วย V)")
+
+
+def _assemble(ib: float, vcc: float, rc_o: float, re_o: float,
+              beta: float, vbe: float) -> dict:
+    """คำนวณผลที่เหลือจาก IB และตรวจว่าแบบจำลอง Forward-Active ใช้ได้หรือไม่"""
+    warnings: list[str] = []
+    if ib <= 0:
+        # Cutoff: ไม่มีกระแส → ไม่มี drop บน RB/RC/RE
+        region = "Cutoff"
+        warnings.append(
+            "IB ≤ 0 — ทรานซิสเตอร์ไม่นำกระแส (Cutoff) "
+            "แบบจำลอง Forward-Active ใช้ไม่ได้"
+        )
+        ib = ic = ie = 0.0
+        ve = 0.0
+        vb = vcc
+        vc = vcc
+        vce = vc - ve
+    else:
+        ic = beta * ib
+        ie = (beta + 1) * ib
+        ve = ie * re_o
+        vb = ve + vbe
+        vc = vcc - ic * rc_o
+        vce = vc - ve
+        if vce < SAT_VCE_LIMIT or vc <= ve:
+            region = "Saturation"
+            warnings.append(
+                "VCE ต่ำ — ทรานซิสเตอร์เข้าสู่ Saturation "
+                "แบบจำลอง Forward-Active ใช้ไม่ได้"
+            )
+        else:
+            region = "Forward-Active"
+
+    return {
+        "ib": ib,
+        "ic": ic,
+        "ie": ie,
+        "vb": vb,
+        "ve": ve,
+        "vc": vc,
+        "vce": vce,
+        "region": region,
+        "warnings": warnings,
+    }
+
+
+def analyze_fixed(vcc: float, rb: float, rc: float,
+                  beta: float, vbe: float) -> dict:
+    """Fixed Bias — IB = (VCC − VBE) / RB
+
+    rb, rc เป็น kΩ; คืน dict ชุดเดิม (IB/IC/IE เป็น A, แรงดันเป็น V)
+    """
+    _validate_common(vcc, beta, vbe)
+    if rb <= 0:
+        raise BiasError("RB ต้องมากกว่า 0 (หน่วย kΩ)")
+    if rc <= 0:
+        raise BiasError("RC ต้องมากกว่า 0 (หน่วย kΩ)")
+    ib = (vcc - vbe) / (rb * 1e3)
+    return _assemble(ib, vcc, rc * 1e3, 0.0, beta, vbe)
+
+
+def analyze_emitter(vcc: float, rb: float, rc: float, re: float,
+                    beta: float, vbe: float) -> dict:
+    """Emitter Bias — IB = (VCC − VBE) / (RB + (β+1)·RE)
+
+    rb, rc, re เป็น kΩ; คืน dict ชุดเดิม
+    """
+    _validate_common(vcc, beta, vbe)
+    for label, value in (("RB", rb), ("RC", rc), ("RE", re)):
+        if value <= 0:
+            raise BiasError(f"{label} ต้องมากกว่า 0 (หน่วย kΩ)")
+    ib = (vcc - vbe) / (rb * 1e3 + (beta + 1) * re * 1e3)
+    return _assemble(ib, vcc, rc * 1e3, re * 1e3, beta, vbe)
