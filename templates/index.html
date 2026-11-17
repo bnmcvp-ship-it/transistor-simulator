@@ -7,10 +7,17 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h1>BJT DC Bias — Common Emitter (Voltage-Divider Bias)</h1>
+  <h1>BJT DC Bias — {{ circuit_label }}</h1>
   <p class="model">แบบจำลอง: Forward-Active Approximation (β, VBE คงที่)</p>
 
+  <nav class="circuits">
+    {% for key, label in circuits %}
+    <a href="/?circuit={{ key }}"{% if key == circuit %} class="active" aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+
   <form method="post" action="/calculate">
+    <input type="hidden" name="circuit" value="{{ circuit }}">
     {% for field, label, placeholder in fields %}
     <label for="{{ field }}">{{ label }}</label>
     <input id="{{ field }}" name="{{ field }}" value="{{ form.get(field, placeholder) }}"
@@ -20,11 +27,11 @@
   </form>
 
   {% if error %}
-  <div class="error">{{ error }}</div>
+  <div class="error">[{{ circuit_label }}] {{ error }}</div>
   {% endif %}
 
   {% if rows is not none %}
-  <h2>DC Bias Results</h2>
+  <h2>{{ circuit_label }} — DC Bias Results</h2>
   <table>
     <tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr>
     {% for name, value, unit in rows %}
