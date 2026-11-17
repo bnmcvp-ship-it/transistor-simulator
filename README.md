@@ -68,6 +68,20 @@ py -m unittest discover -s tests -v
 └── docs/                   # design-note, validation, reflection, test-log, screenshots
 ```
 
+## ส่งงาน / GitHub
+
+- **Repo (public):** https://github.com/bnmcvp-ship-it/transistor-simulator
+- **Branch:** `main`
+- **Lab 03 commit SHA:**
+  - `9c5f00e` — feat: add fixed and emitter bias equations
+  - `af12cea` — feat: select bias circuit mode in Flask form
+  - `0a2ee1e` — docs: record Lab 03 A1–A5 browser validation and screenshots
+  - (commit ล่าสุดหลังอัปเดต-section นี้ดูได้จากหน้า repo — HEAD ตรงกับ remote แล้ว)
+- **ส่วนที่ AI ช่วยเขียน:** ฟังก์ชันใหม่ใน `dc_bias.py`, mode dispatch ใน `app.py`,
+  แถบเลือกโหมดใน template, test ใหม่ 11 ตัว และเอกสาร — สรุปบทบาทอยู่ใน
+  `docs/reflection.md` ข้อ 7; นักศึกษาตรวจอิสระด้วยค่าคำนวณมือและ browser จริงตาม
+  `docs/validation.md`
+
 ## ข้อจำกัดของแบบจำลอง
 
 ใช้ **Forward-Active Approximation** (β, VBE คงที่) — ไม่ใช่ SPICE
