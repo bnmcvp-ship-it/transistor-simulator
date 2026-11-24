@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -35,6 +36,21 @@ TIMEOUT_SECONDS = 30
 
 class SpiceError(Exception):
     """ngspice ไม่พร้อม / รันไม่สำเร็จ / parse ไม่ได้."""
+
+
+def parse_spice_form(value: str | None, label: str, *, minimum: float = 0.0) -> float:
+    """รับข้อความจากฟอร์ม → float ที่Finite และมากกว่า minimum เท่านั้น."""
+    if value is None or str(value).strip() == "":
+        raise SpiceError(f"กรุณากรอกค่า {label}")
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise SpiceError(f"{label} ต้องเป็นตัวเลข") from exc
+    if not math.isfinite(number):
+        raise SpiceError(f"{label} ต้องเป็นFinite number")
+    if number <= minimum:
+        raise SpiceError(f"{label} ต้องมากกว่า {minimum:g}")
+    return number
 
 
 def find_ngspice(explicit: str | None = None) -> str:
