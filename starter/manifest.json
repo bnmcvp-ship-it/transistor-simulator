@@ -1,0 +1,34 @@
+{
+  "model_file": "starter/bc547b.mod",
+  "model_name": "QBC547B",
+  "model_source": "ngspice 47 official example Spice64/examples/tclspice/tcl-testbench3/FB14.cir (BC547B.spi block)",
+  "nodes": {
+    "vin": "VIN",
+    "vb": "VB",
+    "ve": "VE",
+    "vc": "VC",
+    "vout": "VOUT"
+  },
+  "analysis": {
+    "ac": "dec 20 1 10Meg",
+    "tran": "5u 5m 0 1u"
+  },
+  "templates": {
+    "dc": {
+      "directive": ".op",
+      "print_mode": "dc",
+      "print_expr": "v(vb) v(ve) v(vc) i(rc)"
+    },
+    "ac": {
+      "directive": ".ac {ac_sweep}",
+      "print_mode": "ac",
+      "print_expr": "vdb(vin) vdb(vout) vp(vin) vp(vout)"
+    },
+    "tran": {
+      "directive": ".tran {tran_sweep}",
+      "print_mode": "tran",
+      "print_expr": "v(vin) v(vout)"
+    }
+  },
+  "circuit": "VCC VCC 0 DC {vcc}\nVIN VIN 0 DC 0 AC {amplitude} SIN(0 {amplitude} {frequency})\nR1 VCC VB {r1}\nR2 VB 0 {r2}\nRC VCC VC {rc}\nRE VE 0 {re}\nCIN VIN VB {cin}\nCOUT VC VOUT {cout}\nRL VOUT 0 {rl}\nQ1 VC VB VE {model_name}\n{model_card}\n{directive}\n.print {print_mode} {print_expr}\n.end\n"
+}

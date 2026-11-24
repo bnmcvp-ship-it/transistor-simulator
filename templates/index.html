@@ -3,16 +3,77 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>BJT DC Bias Calculator</title>
+  <title>BJT CE Amplifier — Analytical / SPICE</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h1>BJT DC Bias — {{ circuit_label }}</h1>
+  <h1>BJT CE Voltage Divider — {{ 'SPICE Simulation' if analysis == 'spice' else 'DC Bias Calculator' }}</h1>
+
+  <nav class="analyses">
+    <a href="/?analysis=analytical{% if circuit != 'divider' %}&amp;circuit={{ circuit }}{% endif %}"{% if analysis != 'spice' %} class="active" aria-current="page"{% endif %}>Analytical: dc_bias.py</a>
+    <a href="/?analysis=spice"{% if analysis == 'spice' %} class="active" aria-current="page"{% endif %}>SPICE: ngspice</a>
+  </nav>
+
+  {% if analysis == 'spice' %}
+  <p class="model">แบบจำลอง: ngspice — ผลมาจากการรันจริง แยกจาก dc_bias.py</p>
+  <p class="hint">หน่วยที่แสดง: ความถี่ [Hz] · Gain [dB] · Phase [°] · แรงดัน [V] · เวลา [s]</p>
+
+  <form method="post" action="/simulate">
+    <input type="hidden" name="analysis" value="spice">
+    <label for="spice_mode">Analysis</label>
+    <select id="spice_mode" name="spice_mode">
+      {% for key, label in spice_modes.items() %}
+      <option value="{{ key }}"{% if key == spice_mode %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% for field, label, placeholder in spice_fields %}
+    <label for="sp-{{ field }}">{{ label }}</label>
+    <input id="sp-{{ field }}" name="{{ field }}" value="{{ spice_form.get(field, placeholder) }}"
+           inputmode="decimal" autocomplete="off">
+    {% endfor %}
+    <button type="submit">Run ngspice</button>
+  </form>
+
+  {% if engine_status == 'success' %}
+  <div class="status success">Success — {{ spice_modes[spice_mode] }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="error">[SPICE] {{ error }}</div>
+  {% endif %}
+
+  {% if spice_result %}
+  <h2>SPICE Results — {{ spice_modes[spice_mode] }}</h2>
+  <p class="provenance">Source: {{ spice_result.ngspice_version }} · model: {{ spice_result.model }} · provenance: {{ spice_result.provenance }}</p>
+  <table>
+    <tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr>
+    {% for name, value, unit in rows %}
+    <tr><td>{{ name }}</td><td>{{ value }}</td><td>{{ unit }}</td></tr>
+    {% endfor %}
+  </table>
+
+  {% if plot %}
+  <h2>Plots — ข้อมูลจาก ngspice</h2>
+  <div class="plot-block">
+    <h3>{{ plot.y_label }} vs {{ plot.x_label }}</h3>
+    {% with p = plot %}{% include '_plot.html' %}{% endwith %}
+    <p class="legend">{% for s in plot.series %}<span>{{ s.name }}</span>{% endfor %}</p>
+  </div>
+  {% if plot.phase is defined %}
+  <div class="plot-block">
+    <h3>{{ plot.phase.y_label }} vs {{ plot.phase.x_label }}</h3>
+    {% with p = plot.phase %}{% include '_plot.html' %}{% endwith %}
+  </div>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+
+  {% else %}
+
   <p class="model">แบบจำลอง: Forward-Active Approximation (β, VBE คงที่)</p>
 
   <nav class="circuits">
     {% for key, label in circuits %}
-    <a href="/?circuit={{ key }}"{% if key == circuit %} class="active" aria-current="page"{% endif %}>{{ label }}</a>
+    <a href="/?analysis=analytical&amp;circuit={{ key }}"{% if key == circuit %} class="active" aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>
 
@@ -43,6 +104,7 @@
   <ul class="warnings">
     {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
   </ul>
+  {% endif %}
   {% endif %}
   {% endif %}
 </body>

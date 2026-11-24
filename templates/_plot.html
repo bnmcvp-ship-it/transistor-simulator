@@ -1,0 +1,40 @@
+{# กราฟ SVG จากข้อมูล ngspice ล้วน ๆ — ไม่มี chart library ไม่มีค่าสุ่ม/ฮาร์ดโคด #}
+{% set W = 680 %}{% set H = 240 %}
+{% set L = 66 %}{% set R = 18 %}{% set T = 18 %}{% set B = 46 %}
+{% set pw = W - L - R %}{% set ph = H - T - B %}
+{% set xs = p.x_plot if p.x_plot is defined else p.x %}
+{% set xmin = xs|min %}{% set xmax = xs|max %}
+{% set spanx = (xmax - xmin) or 1 %}
+{% set ns = namespace(ymin=none, ymax=none) %}
+{% for s in p.series %}
+  {% set smin = s.y|min %}{% set smax = s.y|max %}
+  {% if ns.ymin is none or smin < ns.ymin %}{% set ns.ymin = smin %}{% endif %}
+  {% if ns.ymax is none or smax > ns.ymax %}{% set ns.ymax = smax %}{% endif %}
+{% endfor %}
+{% set spany = (ns.ymax - ns.ymin) or 1 %}
+{% set colors = ['#12557d', '#c0392b', '#0f7a52'] %}
+<svg class="plot" viewBox="0 0 {{ W }} {{ H }}" role="img" aria-label="{{ p.y_label }} vs {{ p.x_label }}">
+  <rect x="0" y="0" width="{{ W }}" height="{{ H }}" fill="#ffffff"/>
+  {% for k in range(5) %}
+  {% set gy = T + ph * k / 4 %}
+  <line x1="{{ L }}" y1="{{ '%.1f'|format(gy) }}" x2="{{ W - R }}" y2="{{ '%.1f'|format(gy) }}" stroke="#e6f0f8" stroke-width="1"/>
+  {% endfor %}
+  <line x1="{{ L }}" y1="{{ T }}" x2="{{ L }}" y2="{{ T + ph }}" stroke="#54708a" stroke-width="1"/>
+  <line x1="{{ L }}" y1="{{ T + ph }}" x2="{{ W - R }}" y2="{{ T + ph }}" stroke="#54708a" stroke-width="1"/>
+  {% for s in p.series %}
+  {% set color = colors[loop.index0 % 3] %}
+  {% set pts = namespace(items=[]) %}
+  {% for i in range(xs|length) %}
+    {% set px = L + (xs[i] - xmin) / spanx * pw %}
+    {% set py = T + (1 - (s.y[i] - ns.ymin) / spany) * ph %}
+    {% set pts.items = pts.items + ['%.2f,%.2f'|format(px, py)] %}
+  {% endfor %}
+  <polyline points="{{ pts.items|join(' ') }}" fill="none" stroke="{{ color }}" stroke-width="1.8"/>
+  {% endfor %}
+  <text x="{{ L }}" y="{{ H - 8 }}" class="axis-title">{{ p.x_label }}</text>
+  <text x="14" y="{{ T + ph / 2 }}" class="axis-title" transform="rotate(-90 14 {{ T + ph / 2 }})">{{ p.y_label }}</text>
+  <text x="{{ L }}" y="{{ T + ph + 16 }}" class="tick">{{ '%.3g'|format(p.x|min) }}</text>
+  <text x="{{ W - R }}" y="{{ T + ph + 16 }}" class="tick" text-anchor="end">{{ '%.3g'|format(p.x|max) }}</text>
+  <text x="{{ L - 6 }}" y="{{ T + 6 }}" class="tick" text-anchor="end">{{ '%.2f'|format(ns.ymax) }}</text>
+  <text x="{{ L - 6 }}" y="{{ T + ph }}" class="tick" text-anchor="end">{{ '%.2f'|format(ns.ymin) }}</text>
+</svg>

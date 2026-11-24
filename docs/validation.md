@@ -81,3 +81,73 @@
 - 6 tests ใน `tests/test_web.py` — GET ฟอร์มตามโหมด, POST Fixed/Emitter,
   unknown circuit → error, RB=0 → ไม่มี stale result
 - 4 tests เดิมของ Lab 02 ยังผ่านทุกตัว (Divider ไม่เปลี่ยนผล)
+
+---
+
+# Validation — Lab 04: CE Voltage Divider SPICE Simulator
+
+รัน `ngspice-47` **จริง** ผ่าน `subprocess.run([...])` (ไม่ `shell=True`, มี `timeout`,
+แยก `TemporaryDirectory` ต่อรอบ) แล้วอ่านผลจาก log ที่ simulator พิมพ์ออกมา
+ไม่มี gain/cutoff/waveform ใดถูก hard-code
+
+## เครื่องมือที่ใช้ตรวจ Lab 04
+
+| เครื่องมือ | สถานะ | หมายเหตุ |
+|---|---|---|
+| Playwright MCP | **NOT RUN** | ไม่มี MCP server ใน session นี้ — บันทึกตาม handout ห้ามอ้างว่าใช้ MCP |
+| Impeccable skill | **NOT RUN** | `Unable to load skill impeccable` — ใช้ manual critique แทน (ดู `docs/superpowers/impeccable-lab04.md`) |
+| **OpenCode Browser** | **PASS** | ใช้ตรวจ B1–B7 จริง: `tabs.open`, `find`, `fill`, `select`, `click`, `wait`, `evaluate`, `snapshot`, `screenshot` |
+| Playwright CLI (`npx playwright`) | **PASS (เสริม)** | ใช้เฉพาะจับภาพ B8 ที่ viewport 1280px/390px จริง เพราะ OpenCode Browser ไม่มี tool ปรับ viewport (CLI ≠ MCP) |
+
+## ผลรันจริงที่ใช้เป็นEvidence
+
+- **Engine:** `ngspice-47` (จาก `completed.stdout + log`), model `QBC547B` จาก
+  `starter/bc547b.mod` (copy จาก ngspice 47 official example — ดู
+  `docs/superpowers/starter-inventory.md`)
+- **DC (RE=1 kΩ):** VB=2.081 V, VE=1.436 V, VC=8.852 V, VCE=7.416 V,
+  IC=1.431 mA, IB=4.57 µA
+- **AC ตารางจริง 141 จุด (1 Hz–10 MHz):** gain สูงสุด ≈ 4.92 dB (RE=1 kΩ),
+  f_L=1.584893 Hz, f_H=`not determined in sweep range` (ที่ 10 MHz gain ยัง ~4.86 dB
+  จึงไม่แต่งตัวเลข)
+- **Transient 5006 จุด @ 10 mV, 1 kHz:** Vin peak=0.0100 V, Vout peak=0.0088 V,
+  covariance ของ polyline Vin/Vout = −3412.5 → สัญญาณกลับเฟสตาม CE
+
+## ตาราง B1–B8 (Method / Input / Expected / Observed / Evidence / Status)
+
+| รายการ | Method | Input | Expected | Observed จริง | Evidence | Status |
+|---|---|---|---|---|---|---|
+| **B1 Regression** | OpenCode Browser — เปิด `/?analysis=analytical&circuit=...` แล้วกด Calculate | ชุดอ้างอิง Lab 03 ทั้ง 3 โหมด | ผลเดิมตรง 8.05/1.23, 9.51/1.13, 8.71/1.03 | Divider `VCE 8.05 V, IC 1.23 mA`; Fixed `9.51 V, 1.13 mA`; Emitter `8.71 V, 1.03 mA` | snapshot หลัง POST `/calculate` | **PASS** |
+| **B2 DC SPICE** | เลือก `analysis=spice`, `spice_mode=dc`, กด Run ngspice | VCC=12, R1=100k, R2=22k, RC=2.2k, RE=1k, RL=10k, CIN=COUT=10µF | VB/VE/VC/VCE/IC จาก ngspice + model + status | `Success — DC Operating Point (.op)`, `Source: ngspice-47 · model: QBC547B`, VB 2.081, VE 1.436, VC 8.852, VCE 7.416 V, IC 1.431 mA | snapshot หลัง POST `/simulate` | **PASS** |
+| **B3 Change RE** | แก้เฉพาะ RE แล้ว Run ซ้ำ | RE 1 kΩ → 2 kΩ | Operating point/Gain เปลี่ยน ไม่ใช่ค่าค้าง | IC `1.431 → 0.745 mA`, VB `2.081 → 2.122 V`, VC `8.852 → 10.361 V` | evaluate ข้อความตารางรอบใหม่ | **PASS** |
+| **B4 AC** |เลือก `ac` แล้ว Run | ค่าเดิม (RE=2 kΩ จาก B3) | Frequency axis/Gain/Phase พร้อมหน่วย ไม่ hard-code | `Gain สูงสุด −0.93 dB`, `f_L 1.778 Hz`, `f_H not determined in sweep range`, `Phase 2.67°`; 2 `<svg.plot>` 2 `<polyline>` แกน `Frequency (Hz)`, `Gain (dB)`, `Phase (°)` | evaluate DOM + snapshot | **PASS** |
+| **B5 Transient** |เลือก `tran` แล้ว Run | amplitude 0.010 V peak, 1 kHz | Vin/Vout ตามเวลา + ป้ายหน่วย + กลับเฟส | 5006 จุดต่อสัญญาณ, `Vin peak 0.0100 V`, `Vout peak 0.0088 V`, covariance −3412.5 → inverted | evaluate polyline + snapshot | **PASS** |
+| **B6 Change Source** | แก้เฉพาะ amplitude แล้ว Run ซ้ำ | 0.010 → 0.020 V peak | waveform เปลี่ยนตามจริง | `Vin peak 0.0200 V`, `Vout peak 0.0088 → 0.0177 V` (~2×) | evaluate ตารางรอบใหม่ | **PASS** |
+| **B7 Invalid/Fail** | ใส่ RE=0 แล้ว Run | RE=0 พร้อมค่าอื่นครบ | error ชัด ไม่ค้าง ไม่มี Success ปลอม | `[SPICE] RE ต้องมากกว่า 0`, `Success=false`, `svg.plot=0` | evaluate DOM + snapshot | **PASS** |
+| **B8 UI** | Playwright CLI จับ viewport จริง 1280×900 / 390×844 | หน้า `/?analysis=spice` หลัง Run AC | กราฟ/หน่วย/ปุ่มอ่านง่าย ไม่ตัดเนื้อหา | desktop `scrollW=1280, clientW=1280, media390=false`; mobile `scrollW=390, clientW=390, media390=true`, svg=2 ทั้งสอง | `lab04-B8-desktop.png`, `lab04-B8-mobile.png` | **PASS** |
+
+## ความคลาดเคลื่อน Analytical vs SPICE (ต้องอ่าน)
+
+- `dc_bias.py` ใช้ **Forward-Active Approximation** β=100, VBE=0.70 V คงที่ →
+  Divider RE=1 kΩ ได้ IC≈1.23 mA
+- ngspice ใช้ **BC547B Gummel-Poon** (BF=294.3, VBE แปรตามกระแส) → IC≈1.431 mA
+- ผลต่าง ~16% **ไม่ใช่ bug** — คนละ model คนละสมมติฐาน หน้าเว็บแยกป้าย
+  `Analytical: dc_bias.py` กับ `Source: ngspice-47 · model: QBC547B` เสมอ
+- `f_H` อยู่นอก sweep 10 MHz จึงแสดงข้อความว่าไม่พบในช่วงที่รัน ห้ามตีความเป็น 0
+
+## Automated Tests (Lab 04)
+
+`py -m unittest discover -v` → **43 tests OK** (24 เดิมจาก Lab 02/03 + 19 ใหม่จาก Lab 04)
+
+- `test_dc_bias.py` (14) + `test_web.py` (10) — สมการ/validation 3 โหมด + route เดิม
+- `test_spice_smoke.py` (1), `test_spice_validation.py` (2), `test_spice_dc.py` (3),
+  `test_spice_series.py` (4) — engine จริง 10 กรณี
+- `test_simulate_route.py` (5), `test_ui_lab04.py` (4) — route/test client + UI 9 กรณี
+
+## ภาพ Lab 04
+
+| จุดประสงค์ | ไฟล์ |
+|---|---|
+| before/after (Impeccable) | `lab04-ui-before.png`, `lab04-ui-after.png` |
+| B1–B8 (รันซ้ำ 1 ข้อ 1 แท็บ พร้อมค่าจริง) | `lab04-B1.png` … `lab04-B8.png` |
+| B8 desktop 1280px | `lab04-B8-desktop.png` |
+| B8 mobile 390px | `lab04-B8-mobile.png` |

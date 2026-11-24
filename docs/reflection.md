@@ -88,3 +88,17 @@ input `name="re"` → browser สร้าง POST body `re=2` ไป `/calculat
 - จุดที่โค้ดเลือกฟังก์ชัน: `if mode == "divider" / elif "fixed" / else "emitter"`
   ใน `app.py`; จุดแปลงหน่วย: `rb * 1e3`, `re * 1e3` ใน `dc_bias.py`
 
+## 8. Lab 04 — ส่วนที่ AI ช่วย vs สิ่งที่ตรวจเอง (ต่อจาก Lab 03)
+
+- AI เขียน/แก้: `spice_engine.py` (netlist, `subprocess.run`, parser `.op/.ac/.tran`),
+  route `/simulate` และแยก context ใน `app.py`, ฟอร์ม SPICE + `_plot.html` + CSS polish,
+  test ใหม่ 19 ตัว และเอกสาร Lab 04
+- สิ่งที่ตรวจเอง: เปิด `/simulate` ใน browser จริงรัน 3 mode, เปลี่ยน RE 1→2 kΩ และ
+  amplitude 0.010→0.020 V แล้วเทียบผลก่อน/หลัง, ใส่ RE=0 ดู error ไม่มี Success ปลอม,
+  อ่าน engine/model/version จากหน้าผลลัพธ์เสมอ, และรัน `unittest` 43 tests ให้ผ่าน
+- จุดที่โค้ดคุมความจริง: `find_ngspice()` เลือก `NGSPICE_EXE`/PATH,
+  `run()` ส่ง `[exe, "-b", "-o", log, cir]` พร้อม `timeout`,
+  `parse_series()` รวมตาราง AC ตาม `Index`; กราฟวาดจากข้อมูล ngspice เท่านั้น
+- ข้อจำกัดที่รับรู้: Impeccable skill/Playwright MCP ไม่พร้อม → ใช้ manual critique
+  และ OpenCode Browser ตาม handout บันทึก `NOT RUN` ตรง ๆ (ดู `docs/validation.md`)
+
