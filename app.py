@@ -7,6 +7,8 @@ Lab 03: เลือกได้ 3 โหมด divider / fixed / emitter ผ่
 Lab 04: analysis=spice ใช้ /simulate เรียก ngspice จริง แยกจาก /calculate เดิม
 """
 
+import math
+
 import spice_engine
 from flask import Flask, render_template, request
 
@@ -102,13 +104,17 @@ def _spice_presentation(mode: str, result: dict) -> tuple[list, dict | None]:
             ("f_H (−3 dB)", _cutoff_text(series["cutoff_high"]), "Hz"),
             ("Phase ที่ gain สูงสุด", f"{series['series']['phase'][peak]:.2f}", "°"),
         ]
+        # แกนความถี่ใช้ log10 เพื่อให้ Bode อ่านได้ (ค่าที่โชว์ยังเป็น Hz จาก ngspice)
+        log_x = [math.log10(freq) for freq in x]
         plot = {
             "x": x,
+            "x_plot": log_x,
             "series": [{"name": "Gain (dB)", "y": series["y"]}],
             "x_label": "Frequency (Hz)",
             "y_label": "Gain (dB)",
             "phase": {
                 "x": x,
+                "x_plot": log_x,
                 "series": [{"name": "Phase (°)", "y": series["series"]["phase"]}],
                 "x_label": "Frequency (Hz)",
                 "y_label": "Phase (°)",

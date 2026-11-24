@@ -16,6 +16,7 @@
 
   {% if analysis == 'spice' %}
   <p class="model">แบบจำลอง: ngspice — ผลมาจากการรันจริง แยกจาก dc_bias.py</p>
+  <p class="hint">หน่วยที่แสดง: ความถี่ [Hz] · Gain [dB] · Phase [°] · แรงดัน [V] · เวลา [s]</p>
 
   <form method="post" action="/simulate">
     <input type="hidden" name="analysis" value="spice">
@@ -49,6 +50,21 @@
     <tr><td>{{ name }}</td><td>{{ value }}</td><td>{{ unit }}</td></tr>
     {% endfor %}
   </table>
+
+  {% if plot %}
+  <h2>Plots — ข้อมูลจาก ngspice</h2>
+  <div class="plot-block">
+    <h3>{{ plot.y_label }} vs {{ plot.x_label }}</h3>
+    {% with p = plot %}{% include '_plot.html' %}{% endwith %}
+    <p class="legend">{% for s in plot.series %}<span>{{ s.name }}</span>{% endfor %}</p>
+  </div>
+  {% if plot.phase is defined %}
+  <div class="plot-block">
+    <h3>{{ plot.phase.y_label }} vs {{ plot.phase.x_label }}</h3>
+    {% with p = plot.phase %}{% include '_plot.html' %}{% endwith %}
+  </div>
+  {% endif %}
+  {% endif %}
   {% endif %}
 
   {% else %}
