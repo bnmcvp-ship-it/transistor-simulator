@@ -151,6 +151,95 @@ def parse_op_log(log_text: str) -> dict[str, float]:
     }
 
 
+def _table_rows(log_text: str, columns: str) -> dict[int, tuple[float, float, float]]:
+    """อ่านตาราง .print ที่ ngspice แบ่งเป็นหลายหน้า (Index ซ้ำทุกหน้า).
+
+    คืน {index: (column1, column2, column3)} จากตารางที่ header มี `columns`
+    """
+    rows: dict[int, tuple[float, float, float]] = {}
+    active = False
+    number = re.compile(r"^\s*(\d+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s*$")
+    for line in log_text.splitlines():
+        if line.lstrip().startswith("Index"):
+            active = columns in line
+            continue
+        if not active:
+            continue
+        match = number.match(line)
+        if match:
+            rows[int(match.group(1))] = (
+                float(match.group(2)),
+                float(match.group(3)),
+                float(match.group(4)),
+            )
+    return rows
+
+
+def parse_series(log_text: str, mode: str) -> dict:
+    """แปลงตารางจาก ngspice เป็น series พร้อมหน่วย (ค่าจาก simulation เท่านั้น)."""
+    if mode == "ac":
+        magnitude = _table_rows(log_text, "vdb(vin)")
+        phase = _table_rows(log_text, "vp(vin)")
+        if not magnitude or not phase:
+            raise SpiceError("ngspice AC output ไม่มีตาราง vdb(vin)/vp(vin)")
+        indices = sorted(set(magnitude) & set(phase))
+        x = [magnitude[i][0] for i in indices]
+        y = [magnitude[i][2] - magnitude[i][1] for i in indices]
+        phase_degree = [phase[i][2] - phase[i][1] for i in indices]
+        threshold = max(y) - 3.0
+
+        # -3 dB ต้องเป็นจุดที่ "เคยผ่าน" gain สูงสุดแล้วตกลง ไม่ใช่ค่าที่ sweep เริ่มต้น
+        # เดินจากความถี่ต่ำ→สูง = f_H ; เดินจากสูง→ต่ำ = f_L
+        cutoff_high = "not determined in sweep range"
+        above = False
+        for freq, gain in zip(x, y):
+            if gain > threshold:
+                above = True
+            elif above:
+                cutoff_high = freq
+                break
+        cutoff_low = "not determined in sweep range"
+        above = False
+        for freq, gain in zip(reversed(x), reversed(y)):
+            if gain > threshold:
+                above = True
+            elif above:
+                cutoff_low = freq
+                break
+        return {
+            "x": x,
+            "unit_x": "Hz",
+            "y": y,
+            "unit_y": "dB",
+            "series": {
+                "phase": phase_degree,
+                "vin_db": [magnitude[i][1] for i in indices],
+                "vout_db": [magnitude[i][2] for i in indices],
+            },
+            "cutoff": cutoff_low if isinstance(cutoff_low, float) else cutoff_high,
+            "cutoff_low": cutoff_low,
+            "cutoff_high": cutoff_high,
+        }
+
+    if mode == "tran":
+        rows = _table_rows(log_text, "time")
+        if not rows:
+            raise SpiceError("ngspice transient output ไม่มีตาราง time/v(vin)/v(vout)")
+        indices = sorted(rows)
+        return {
+            "x": [rows[i][0] for i in indices],
+            "unit_x": "s",
+            "y": [rows[i][2] for i in indices],
+            "unit_y": "V",
+            "series": {
+                "vin": [rows[i][1] for i in indices],
+                "vout": [rows[i][2] for i in indices],
+            },
+        }
+
+    raise SpiceError(f"โหมดไม่รองรับ: {mode}")
+
+
 def run(
     mode: str,
     values: dict[str, float],
@@ -208,4 +297,9 @@ def run(
         result["units"] = {
             "vb": "V", "ve": "V", "vc": "V", "vce": "V", "ic": "A", "ib": "A",
         }
+    else:
+        parsed = parse_series(log_text, mode)
+        result["series"] = parsed
+        if "cutoff" in parsed:
+            result["cutoff"] = parsed["cutoff"]
     return result
