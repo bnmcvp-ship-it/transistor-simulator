@@ -1,23 +1,43 @@
-# ENG29 2121 — Lab 02 → Lab 03: BJT DC Bias Web App
+# ENG29 2121 — Lab 02 → Lab 04: BJT CE Amplifier (Analytical + SPICE)
 
-Web Application คำนวณ **DC Operating Point** ของวงจรขยาย BJT Common Emitter
-3 แบบในเว็บเดียว: **Voltage-Divider Bias**, **Fixed Bias** และ **Emitter Bias**
-— รับค่าผ่านฟอร์มใน Browser แล้วให้ Python Backend (Flask) คำนวณและส่งผลกลับ
-มาแสดง (ไม่ใช่ค่าฮาร์ดโคดใน HTML)
+เว็บแอป Flask เดียว มี **2 แหล่งผลลัพธ์ที่แยกป้ายชัดเจน**:
+
+| แถบ | แหล่งผล | สิ่งที่คำนวณ |
+|---|---|---|
+| `Analytical: dc_bias.py` | สมการวิศวกรรม in-house | DC Bias 3 โหมด (Voltage-Divider / Fixed / Emitter) |
+| `SPICE: ngspice` | `ngspice-47` รันจริงผ่าน `subprocess.run([...])` | `.op`, `.ac`, `.tran` ของวงจร Voltage Divider |
+
+ผล/กราฟทั้งหมดมาจากการรันจริง (ไม่มี gain/cutoff/waveform hard-code ใน HTML)
+และแยก provenance ทุกครั้ง: `Source: ngspice-47 · model: QBC547B · provenance: ngspice`
 
 ## การติดตั้งและรัน
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\Activate.ps1          # Windows PowerShell (Linux/macOS: source .venv/bin/activate)
+.venv\Scripts\Activate.ps1          # Linux/macOS: source .venv/bin/activate
 python -m pip install -r requirements.txt
-python -m flask --app app run --debug
 ```
 
-เปิด `http://127.0.0.1:5000/` ใน Browser แล้วเลือกโหมดจากแถบด้านบน
-(ลิงก์โหลดฟอร์มใหม่ตามโหมดโดยไม่ต้องใช้ JavaScript)
+ต้องมี ngspice (ทดสอบกับ **ngspice 47**) สองทางเลือก:
 
-## สามโหมดการคำนวณ
+```powershell
+# A) ติดตั้งแล้วอยู่ใน PATH — ไม่ต้องตั้งอะไรเพิ่ม
+ngspice -v
+
+# B) portable / อยู่ที่อื่น — ชี้ NGSPICE_EXE ไปตัว executable
+$env:NGSPICE_EXE = "C:\Users\<user>\AppData\Local\Temp\opencode\ngspice-47\Spice64\bin\ngspice_con.exe"
+```
+
+จากนั้นรัน server แล้วเปิด `http://127.0.0.1:5001/`:
+
+```powershell
+py -m flask --app app run --port 5001 --no-debug
+```
+
+หน้า `/?analysis=analytical` = ฟอร์ม Lab 03 เดิม, `/?analysis=spice` = ฟอร์มจำลอง
+ลิงก์ในแถบด้านบนโหลดฟอร์มใหม่โดยไม่ใช้ JavaScript
+
+## ฝั่ง Analytical (`dc_bias.py` — ไม่แตะ SPICE)
 
 | โหมด (`circuit`) | ช่องที่ใช้ | สมการหลัก |
 |---|---|---|
@@ -25,66 +45,88 @@ python -m flask --app app run --debug
 | `fixed` | VCC, RB, RC, β, VBE | IB=(VCC−VBE)/RB |
 | `emitter` | VCC, RB, RC, RE, β, VBE | IB=(VCC−VBE)/(RB+(β+1)RE) |
 
-ทุกโหมดใช้ IC=β·IB, IE=(β+1)IB, VE=IE·RE (Fixed: VE=0), VB=VE+VBE,
-VC=VCC−IC·RC, VCE=VC−VE — สมการทั้งหมดอยู่ใน `dc_bias.py` เท่านั้น
+IC=β·IB, IE=(β+1)IB, VE=IE·RE (Fixed: VE=0), VB=VE+VBE,
+VC=VCC−IC·RC, VCE=VC−VE — สมการอยู่ใน `dc_bias.py` เท่านั้น
 
-ตัวอย่าง VCC=12 V, RC=2.2 kΩ, β=100, VBE=0.70 V:
+อินพุตเป็น **kΩ** แล้วแปลงใน route; RB=0 → `[Fixed Bias] RB ต้องมากกว่า 0`
+หน้าไม่ล้มและไม่โชว์ผลรอบก่อน
 
-| โหมด | อินพุตเพิ่ม | IC | VCE |
-|---|---|---|---|
-| Divider | R1=100, R2=22, RE=1 kΩ | 1.23 mA | 8.05 V |
-| Fixed | RB=1000 kΩ | 1.13 mA | 9.51 V |
-| Emitter | RB=1000 kΩ, RE=1 kΩ | 1.03 mA | 8.71 V |
-| Emitter | RB=1000 kΩ, RE=2 kΩ | 0.94 mA | 8.03 V |
+## ฝั่ง SPICE (`spice_engine.py` + `app.py`)
 
-RB=0 → error `[Fixed Bias] RB ต้องมากกว่า 0 (หน่วย kΩ)` หน้าไม่ล้ม และไม่โชว์ผลรอบก่อน
+เลือก **Analysis** ในฟอร์ม:
+
+| `spice_mode` | การรันจริง | ผลที่แสดง |
+|---|---|---|
+| `dc` | `.op` | VB, VE, VC, VCE, IC, IB + status + model/engine |
+| `ac` | `.ac dec 141 1 10Meg` | Gain สูงสุด, f_L/f_H ที่ −3 dB, phase, กราฟ Gain/Phase vs **Frequency [Hz]** (แกนวาด log10) |
+| `tran` | `.tran` ที่ความถี่ Vin | Vin/Vout peak, กราฟสัญญาณ vs **Time [s]** |
+
+หน่วยในฟอร์ม: VCC/Vin = **V**, R*/RL = **kΩ**, CIN/COUT = **µF** → แปลงเป็น SI
+ก่อนเขียน netlist (R×1e3, C×1e−6) ห้ามส่งค่าดิบจากฟอร์มลง netlist
+
+รายละเอียดการรัน: `subprocess.run([...], timeout=...)` ไม่ใช้ `shell=True`,
+แยก `TemporaryDirectory` ต่อรอบ, อ่าน version จาก `stdout + log`,
+model มาจาก `starter/bc547b.mod` (copy จาก ngspice 47 official example —
+ดู `docs/superpowers/starter-inventory.md`)
+
+ข้อควรระวังเรื่องผล:
+
+- `f_H` ที่ RE=1 kΩ อยู่นอก sweep 10 MHz → แสดง `not determined in sweep range`
+  (ห้ามตีความเป็น 0 หรือแต่งตัวเลข)
+- AC ตาราง `.print` ถูก ngspice แบ่งหน้า → parser รวมตาม `Index`
+- กราฟ SVG วาดจาก polyline ของข้อมูลจริงเท่านั้น
+
+## ความคลาดเคลื่อน Analytical vs SPICE (คนละแบบจำลอง)
+
+`dc_bias.py` ใช้ **Forward-Active Approximation** (β=100, VBE=0.70 V คงที่)
+→ Divider RE=1 kΩ ได้ IC≈1.23 mA
+ngspice ใช้ **BC547B Gummel-Poon** (BF≈294, VBE แปรตามกระแส) → IC≈1.431 mA
+ต่าง ~16% **ไม่ใช่ bug** — หน้าเว็บแยกป้ายทั้งสองเสมอ อย่านำค่าสองชุดมาเทียบ
+ราวกับเป็น solver เดียวกัน
 
 ## การทดสอบ
 
 ```powershell
-py -m unittest discover -s tests -v
+py -m unittest discover -v
 ```
 
-**24 tests** ครอบคลุม: สมการ 3 โหมด, input validation, region warnings,
-เลือกโหมดผ่าน HTTP, error ไม่โชว์ stale result — ผ่าน Flask test client
-ผลจริงดูได้ใน `docs/test-log.txt`
+**43 tests OK** (24 เดิม Lab 02/03 + 19 ใหม่ Lab 04) — ครอบสมการ/validation,
+route เดิม, engine จริง dc/ac/tran, `/simulate`, error ไม่โชว์ stale result,
+และ UI มี status/provenance/กราฟ/rank ของหน่วย
 
-## การตรวจผลผ่าน Browser
+ผลจริงและตารางรับมาตรฐาน B1–B8 อยู่ใน `docs/validation.md`
+(before/after + ภาพ B8 1280px/390px อยู่ใน `docs/screenshots/`;
+critique/polish/audit อยู่ใน `docs/superpowers/impeccable-lab04.md`)
 
-ตาราง A1–A5, วิธีตรวจ, และสถานะเครื่องมืออยู่ใน `docs/validation.md`
-(ใช้ **OpenCode Browser** เพราะไม่มี node/npx สำหรับ Playwright MCP —
-บันทึก `NOT RUN` พร้อมเหตุผลตาม handout)
-ภาพหน้าจอคู่ **ก่อนใส่ค่า / หลังใส่ค่า** ของ A1–A5 อยู่ใน `docs/screenshots/`
-(`lab03-A1-before.png` / `lab03-A1-after.png` ... `lab03-A5-*.png`)
+เครื่องมือตรวจ: ใช้ **OpenCode Browser** เป็นหลัก เพราะไม่มี Playwright MCP ใน session
+(บันทึก `NOT RUN`) ส่วน viewport 390px ใช้ Playwright CLI จับภาพ — CLI ไม่ใช่ MCP
 
 ## โครงสร้าง
 
 ```
-├── app.py                  # Flask routes — เลือกโหมด + ตรวจ field ตามโหมด
-├── dc_bias.py              # สมการวิศวกรรม 3 โหมด — ไม่รู้จัก HTML/HTTP
-├── templates/index.html    # ฟอร์ม + แถบเลือกโหมด + ผลลัพธ์ (Jinja)
-├── static/style.css        # หน้าตาเว็บ
-├── tests/                  # test_dc_bias.py + test_web.py
-├── requirements.txt
-└── docs/                   # design-note, validation, reflection, test-log, screenshots
+├── app.py                  # Flask: /calculate (Lab 03) + /simulate (Lab 04)
+├── dc_bias.py              # สมการ 3 โหมด — ไม่รู้จัก HTML/HTTP/SPICE
+├── spice_engine.py         # build_netlist / run / parse op + series จาก ngspice จริง
+├── starter/bc547b.mod      # BC547B model จาก ngspice 47 official example
+├── templates/index.html    # ฟอร์ม 2 ชุด + status + provenance + แถบเลือก
+├── templates/_plot.html    # SVG polyline จากข้อมูล ngspice จริง
+├── static/style.css        # หน้าตา + Impeccable polish
+├── tests/                  # 43 tests (unittest)
+└── docs/                   # design/plan/spec, validation, screenshots, inventory
 ```
 
 ## ส่งงาน / GitHub
 
 - **Repo (public):** https://github.com/bnmcvp-ship-it/transistor-simulator
-- **Branch:** `main`
-- **Lab 03 commit SHA:**
-  - `9c5f00e` — feat: add fixed and emitter bias equations
-  - `af12cea` — feat: select bias circuit mode in Flask form
-  - `0a2ee1e` — docs: record Lab 03 A1–A5 browser validation and screenshots
-  - (commit ล่าสุดหลังอัปเดต-section นี้ดูได้จากหน้า repo — HEAD ตรงกับ remote แล้ว)
-- **ส่วนที่ AI ช่วยเขียน:** ฟังก์ชันใหม่ใน `dc_bias.py`, mode dispatch ใน `app.py`,
-  แถบเลือกโหมดใน template, test ใหม่ 11 ตัว และเอกสาร — สรุปบทบาทอยู่ใน
-  `docs/reflection.md` ข้อ 7; นักศึกษาตรวจอิสระด้วยค่าคำนวณมือและ browser จริงตาม
-  `docs/validation.md`
-
-## ข้อจำกัดของแบบจำลอง
-
-ใช้ **Forward-Active Approximation** (β, VBE คงที่) — ไม่ใช่ SPICE
-ผลที่อยู่นอกสมมติฐาน (Cutoff: IB≤0 / VTH≤VBE, Saturation: VCE<0.2 V) จะแสดง
-คำเตือน และไม่ควรนับว่าเป็นค่าจำลองที่แม่นยำ
+- **Branch:** `lab04`
+- **Lab 04 commits:**
+  - `99944b5` — starter/model + smoke test
+  - `c779ddd` — validation ของฟอร์ม SPICE
+  - `c787896` — netlist + `.op` + parser จริง
+  - `4c1c868` — parser `.ac`/`.tran`
+  - `2939771` — route `/simulate` แยกจาก `/calculate`
+  - `d8cc052` — ฟอร์ม/status/provenance/SVG
+  - `72e3bce` — Impeccable polish + ภาพ before/after
+- **ส่วนที่ AI ช่วยเขียน:** netlist/parser/route/template/test/docs ตาม plan ใน
+  `docs/superpowers/plans/2026-11-24-lab04-ce-spice-simulator.md`; นักศึกษาตรวจอิสระ
+  ด้วย browser จริงตาม `docs/validation.md` (B1–B8)
