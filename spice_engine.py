@@ -76,6 +76,35 @@ def _fmt(value: float) -> str:
     return f"{value:.10g}"
 
 
+def build_netlist(mode: str, values: dict[str, float], starter: dict) -> str:
+    """สร้าง netlist _self-contained_ จาก Starter template + ค่าที่ตรวจแล้ว."""
+    if mode not in {"dc", "ac", "tran"}:
+        raise SpiceError(f"โหมดไม่รองรับ: {mode}")
+    config = starter["templates"][mode]
+    merged = {**DEFAULT_VALUES, **values}
+    fields = {
+        **merged,
+        "model_name": starter["model_name"],
+        "model_card": starter["model_card"],
+        "directive": config["directive"].format(
+            ac_sweep=starter["analysis"]["ac"],
+            tran_sweep=starter["analysis"]["tran"],
+        ),
+        "print_mode": config["print_mode"],
+        "print_expr": config["print_expr"],
+    }
+    # SPICE ถือบรรทัดแรกเป็น title เสมอ — ต้องเป็น comment ไม่ใช่ element
+    netlist = "* CE Voltage Divider reference\n" + starter["circuit"].format(
+        **{k: _fmt(v) if isinstance(v, float) else v for k, v in fields.items()}
+    )
+    if mode == "dc":
+        # .op ไม่ใช่ dc sweep → .print dc จะ error ใน ngspice; อ่านจาก op table แทน
+        netlist = "\n".join(
+            line for line in netlist.splitlines() if not line.lstrip().startswith(".print")
+        ) + "\n"
+    return netlist
+
+
 def parse_op_log(log_text: str) -> dict[str, float]:
     """อ่าน .op output: node voltage table + BJT device currents (SI)."""
     node_values: dict[str, float] = {}
@@ -133,29 +162,7 @@ def run(
         raise SpiceError(f"โหมดไม่รองรับ: {mode}")
     starter = starter or load_starter()
     executable = find_ngspice(exe)
-    config = starter["templates"][mode]
-
-    merged = {**DEFAULT_VALUES, **values}
-    fields = {
-        **merged,
-        "model_name": starter["model_name"],
-        "model_card": starter["model_card"],
-        "directive": config["directive"].format(
-            ac_sweep=starter["analysis"]["ac"],
-            tran_sweep=starter["analysis"]["tran"],
-        ),
-        "print_mode": config["print_mode"],
-        "print_expr": config["print_expr"],
-    }
-    # SPICE ถือบรรทัดแรกเป็น title เสมอ — ต้องเป็น comment ไม่ใช่ element
-    netlist = "* CE Voltage Divider reference\n" + starter["circuit"].format(
-        **{k: _fmt(v) if isinstance(v, float) else v for k, v in fields.items()}
-    )
-    if mode == "dc":
-        # .op ไม่ใช่ dc sweep → .print dc จะ error ใน ngspice; อ่านจาก op table แทน
-        netlist = "\n".join(
-            line for line in netlist.splitlines() if not line.lstrip().startswith(".print")
-        ) + "\n"
+    netlist = build_netlist(mode, values, starter)
 
     with tempfile.TemporaryDirectory(prefix="lab04-ngspice-") as workdir:
         cir = Path(workdir) / "circuit.cir"
