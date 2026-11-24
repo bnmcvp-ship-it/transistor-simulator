@@ -148,5 +148,6 @@
 | จุดประสงค์ | ไฟล์ |
 |---|---|
 | before/after (Impeccable) | `lab04-ui-before.png`, `lab04-ui-after.png` |
+| B1–B8 (รันซ้ำ 1 ข้อ 1 แท็บ พร้อมค่าจริง) | `lab04-B1.png` … `lab04-B8.png` |
 | B8 desktop 1280px | `lab04-B8-desktop.png` |
 | B8 mobile 390px | `lab04-B8-mobile.png` |
